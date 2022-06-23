@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -10,24 +11,51 @@ import (
 	"github.com/gorilla/mux"
 )
 
-/**
-Please note Start functions is a placeholder for you to start your own solution.
-Feel free to drop gorilla.mux if you want and use any other solution available.
+func handleName(w http.ResponseWriter, r *http.Request) {
+	p := mux.Vars(r)["name"]
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(fmt.Sprintf("Hello, %s!", p)))
+}
 
-main function reads host/port from env just for an example, flavor it following your taste
-*/
+func handleBad(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusInternalServerError)
+	w.Write([]byte("This call will always fail"))
+}
 
-// Start /** Starts the web server listener on given host and port.
+func handleDataPost(w http.ResponseWriter, r *http.Request) {
+
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Bad body"))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(fmt.Sprintf("I got message:\n%s", string(b))))
+}
+
+func handleDataGet(w http.ResponseWriter, r *http.Request) {
+	b, _ := ioutil.ReadAll(r.Body)
+	if len(b) != 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("I don't need body for GET request"))
+		return
+	}
+	w.Write([]byte("Good! no body sent"))
+}
+
 func Start(host string, port int) {
 	router := mux.NewRouter()
-
+	router.HandleFunc("/name/{name}", handleName).Methods(http.MethodGet)
+	router.HandleFunc("/bad", handleBad).Methods(http.MethodGet)
+	router.HandleFunc("/data", handleDataPost).Methods(http.MethodPost)
+	router.HandleFunc("/data", handleDataGet).Methods(http.MethodGet)
 	log.Println(fmt.Printf("Starting API server on %s:%d\n", host, port))
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), router); err != nil {
 		log.Fatal(err)
 	}
 }
 
-//main /** starts program, gets HOST:PORT param and calls Start func.
 func main() {
 	host := os.Getenv("HOST")
 	port, err := strconv.Atoi(os.Getenv("PORT"))
